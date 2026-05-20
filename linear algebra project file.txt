@@ -1,0 +1,276 @@
+import java.util.Scanner;
+class Message {
+    private String text;
+    private String original;
+    private boolean padded;
+    Message(String text) {
+        this.original = text;
+        this.text = text.toUpperCase();
+        if (this.text.length() % 2 != 0) {
+            this.text = this.text + " ";
+            this.padded = true;
+        }
+    }
+    String getText() {
+        return text;
+    }
+    String getOriginal() {
+        return original;
+    }
+    boolean wasPadded() {
+        return padded;
+    }
+    int letterToNum(char c) {
+        return (int) c;
+    }
+    char numToLetter(int n) {
+        return (char) n;
+    }
+}
+class EncodingMatrix {
+    private int[][] B;
+    private int size;
+    private double[][] B_inv;
+    EncodingMatrix(int[][] B, int size) {
+        this.B = B;
+        this.size = size;
+        this.B_inv = calculateInverse(B, size);
+    }
+    private double[][] calculateInverse(int[][] M, int n) {
+        double[][] mat = new double[n][n * 2];
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                mat[i][j] = M[i][j];
+            }
+            mat[i][n + i] = 1;
+        }
+        for (int i = 0; i < n; i++) {
+            if (mat[i][i] == 0) {
+                boolean swapped = false;
+                for (int k = i + 1; k < n; k++) {
+                    if (mat[k][i] != 0) {
+                        double[] temp = mat[i];
+                        mat[i] = mat[k];
+                        mat[k] = temp;
+                        swapped = true;
+                        break;
+                    }
+                }
+                if (!swapped) return null;
+            }
+            double pivot = mat[i][i];
+            for (int j = 0; j < n * 2; j++) {
+                mat[i][j] = mat[i][j] / pivot;
+            }
+            for (int k = 0; k < n; k++) {
+                if (k != i) {
+                    double factor = mat[k][i];
+                    for (int j = 0; j < n * 2; j++) {
+                        mat[k][j] = mat[k][j] - factor * mat[i][j];
+                    }
+                }
+            }
+        }
+        double[][] inv = new double[n][n];
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                inv[i][j] = mat[i][n + j];
+            }
+        }
+        return inv;
+    }
+    boolean isInvertible() {
+        return B_inv != null;
+    }
+    int[][] getB() {
+        return B;
+    }
+    double[][] getB_inv() {
+        return B_inv;
+    }
+    int getSize() {
+        return size;
+    }
+}
+class SubstitutionCipher {
+    private int key;
+    SubstitutionCipher(int key) {
+        this.key = key;
+    }
+    char encryptChar(char c, int position) {
+        if (c < 'A' || c > 'Z') return c;
+        int original = c - 'A';
+        int encrypted = (original * key + position * position + key * key * key) % 26;
+        return (char) ('A' + encrypted);
+    }
+    char decryptChar(char c, int position) {
+        if (c < 'A' || c > 'Z') return c;
+        int encrypted = c - 'A';
+        int keyCubed = key * key * key;
+        int posSq = position * position;
+        int modInverse = findModInverse(key, 26);
+        if (modInverse == -1) return c;
+        int original = ((encrypted - posSq - keyCubed) % 26 + 26) % 26;
+        original = (original * modInverse) % 26;
+        return (char) ('A' + original);
+    }
+    private int findModInverse(int a, int m) {
+        a = a % m;
+        for (int x = 1; x < m; x++) {
+            if ((a * x) % m == 1) return x;
+        }
+        return -1;
+    }
+    String applyEncrypt(String text) {
+        String result = "";
+        for (int i = 0; i < text.length(); i++) {
+            result = result + encryptChar(text.charAt(i), i);
+        }
+        return result;
+    }
+    String applyDecrypt(String text) {
+        String result = "";
+        for (int i = 0; i < text.length(); i++) {
+            result = result + decryptChar(text.charAt(i), i);
+        }
+        return result;
+    }
+}
+abstract class Cipher {
+    abstract int[][] encrypt(int[][] A, int[][] B, int size);
+    abstract int[][] decrypt(int[][] C, double[][] B_inv, int size);
+    void printMatrix(int[][] M) {
+        for (int i = 0; i < M.length; i++) {
+            System.out.print("[ ");
+            for (int j = 0; j < M[i].length; j++) {
+                System.out.printf("%-6d", M[i][j]);
+            }
+            System.out.println("]");
+        }
+    }
+}
+class MatrixCipher extends Cipher {
+    @Override
+    int[][] encrypt(int[][] A, int[][] B, int size) {
+        int[][] C = new int[A.length][size];
+        for (int i = 0; i < A.length; i++) {
+            for (int j = 0; j < size; j++) {
+                int sum = 0;
+                for (int k = 0; k < size; k++) {
+                    sum = sum + A[i][k] * B[k][j];
+                }
+                C[i][j] = sum;
+            }
+        }
+        return C;
+    }
+    @Override
+    int[][] decrypt(int[][] C, double[][] B_inv, int size) {
+        int[][] D = new int[C.length][size];
+        for (int i = 0; i < C.length; i++) {
+            for (int j = 0; j < size; j++) {
+                double sum = 0;
+                for (int k = 0; k < size; k++) {
+                    sum = sum + C[i][k] * B_inv[k][j];
+                }
+                D[i][j] = (int) Math.round(sum);
+            }
+        }
+        return D;
+    }
+}
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter message: ");
+        Message msg = new Message(sc.nextLine());
+        System.out.print("Enter key (odd number recommended e.g. 3,5,7): ");
+        int key = sc.nextInt();
+        if (gcd(key, 26) != 1) {
+            System.out.println("Error! Key must be coprime with 26. Try 1,3,5,7,9,11...");
+            return;
+        }
+        SubstitutionCipher subCipher = new SubstitutionCipher(key);
+        System.out.print("\nEnter number of rows of Encoding Matrix: ");
+        int rows = sc.nextInt();
+        System.out.print("Enter number of columns of Encoding Matrix: ");
+        int cols = sc.nextInt();
+        if (rows != cols) {
+            System.out.println("\nError! Encoding matrix must be a square matrix.");
+            System.out.println("You entered " + rows + "x" + cols + " which is a rectangular matrix.");
+            System.out.println("A rectangular matrix does not have an inverse which is necessary for decryption!");
+            return;
+        }
+        int size = rows;
+        int[][] B = new int[size][size];
+        System.out.println("\nEnter " + size + "x" + size + " Encoding Matrix values:");
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                System.out.print("B[" + i + "][" + j + "]: ");
+                B[i][j] = sc.nextInt();
+            }
+        }
+        EncodingMatrix encMatrix = new EncodingMatrix(B, size);
+        if (!encMatrix.isInvertible()) {
+            System.out.println("\nError! This matrix is not invertible. Try different values.");
+            return;
+        }
+        String originalText = msg.getText();
+        String substituted = subCipher.applyEncrypt(originalText);
+        System.out.println("\nOriginal Text : " + msg.getOriginal());
+        System.out.println("After Substitution : " + substituted);
+        String text = substituted;
+        while (text.length() % size != 0) {
+            text = text + " ";
+        }
+        int numRows = text.length() / size;
+        int[][] A = new int[numRows][size];
+        for (int i = 0; i < text.length(); i++) {
+            A[i / size][i % size] = msg.letterToNum(text.charAt(i));
+        }
+        MatrixCipher cipher = new MatrixCipher();
+        System.out.println("\n--- Matrix A (After Substitution) ---");
+        cipher.printMatrix(A);
+        int[][] C = cipher.encrypt(A, encMatrix.getB(), size);
+        System.out.println("\n--- Matrix C (Encrypted) ---");
+        cipher.printMatrix(C);
+        System.out.print("\nEncrypted Stream: ");
+        for (int i = 0; i < C.length; i++) {
+            for (int j = 0; j < C[i].length; j++) {
+                System.out.print(C[i][j]);
+                if (j < C[i].length - 1 || i < C.length - 1) System.out.print(" | ");
+            }
+        }
+        System.out.println();
+        int[][] D = cipher.decrypt(C, encMatrix.getB_inv(), size);
+        System.out.println("\n--- Matrix D (Decrypted) ---");
+        cipher.printMatrix(D);
+        String decryptedSub = "";
+        for (int i = 0; i < D.length; i++) {
+            for (int j = 0; j < D[i].length; j++) {
+                decryptedSub = decryptedSub + msg.numToLetter(D[i][j]);
+            }
+        }
+        while (decryptedSub.length() > originalText.length()
+                && decryptedSub.charAt(decryptedSub.length() - 1) == ' ') {
+            decryptedSub = decryptedSub.substring(0, decryptedSub.length() - 1);
+        }
+        System.out.println("\nAfter Matrix Decrypt : " + decryptedSub);
+        String finalResult = subCipher.applyDecrypt(decryptedSub);
+        String restoredResult = "";
+        for (int i = 0; i < msg.getOriginal().length(); i++) {
+            char orig = msg.getOriginal().charAt(i);
+            if (orig >= 'a' && orig <= 'z') {
+                restoredResult = restoredResult + Character.toLowerCase(finalResult.charAt(i));
+            } else {
+                restoredResult = restoredResult + finalResult.charAt(i);
+            }
+        }
+        System.out.println("\nDecrypted Message : " + restoredResult);
+        sc.close();
+    }
+    static int gcd(int a, int b) {
+        if (b == 0) return a;
+        return gcd(b, a % b);
+    }
+}
